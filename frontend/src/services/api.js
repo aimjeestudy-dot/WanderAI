@@ -3,7 +3,9 @@
  * Securely communicates with the Python FastAPI backend proxy.
  */
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
+const API_BASE = (
+  import.meta.env.VITE_API_BASE_URL || 'https://wanderai-backend-ssup.onrender.com'
+).replace(/\/$/, '');
 const GENERATION_TIMEOUT_MS = 12_000;
 
 async function fetchWithTimeout(url, options, timeoutMs, timeoutMessage) {
