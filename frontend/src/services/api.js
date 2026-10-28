@@ -44,8 +44,8 @@ export async function getSystemStatus() {
   const res = await fetchWithTimeout(
     `${API_BASE}/status`,
     {},
-    15_000,
-    'Status check timed out. Backend may be waking up.'
+    45_000,
+    'Status check timed out. Backend may be waking up from a Render cold start.'
   );
   if (!res.ok) {
     throw new Error(`Failed to fetch system status (HTTP ${res.status})`);

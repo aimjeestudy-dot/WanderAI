@@ -182,3 +182,33 @@ def test_itinerary_crud_flow():
     # 7. Confirm deleted
     get_del_resp = client.get(f"/api/itineraries/{itin_id}")
     assert get_del_resp.status_code == 404
+
+
+def test_cors_preflight_production_origin():
+    """Verify that CORS preflight from the production Vercel domain succeeds."""
+    response = client.options(
+        "/api/itineraries/generate",
+        headers={
+            "Origin": "https://wander-ai-eight.vercel.app",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers.get("access-control-allow-origin") == "https://wander-ai-eight.vercel.app"
+    assert "POST" in response.headers.get("access-control-allow-methods", "")
+
+
+def test_cors_preflight_vercel_preview_origin():
+    """Verify that CORS preflight from Vercel preview deployments succeeds via regex."""
+    response = client.options(
+        "/api/itineraries/generate",
+        headers={
+            "Origin": "https://wander-ai-preview-abc.vercel.app",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers.get("access-control-allow-origin") == "https://wander-ai-preview-abc.vercel.app"
+

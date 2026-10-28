@@ -50,11 +50,11 @@ class Settings:
 
     # CORS Origins
     CORS_ORIGINS: list[str] = [
+        "https://wander-ai-eight.vercel.app",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-        "*"  # Allows easy local development and Vercel previews
     ]
 
 settings = Settings()
