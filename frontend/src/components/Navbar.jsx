@@ -1,9 +1,36 @@
 import React from 'react';
 import { Compass, Sparkles, Bookmark, Settings as SettingsIcon, Globe } from 'lucide-react';
 
-export default function Navbar({ activeTab, setActiveTab, savedCount, systemStatus }) {
+export default function Navbar({ activeTab, setActiveTab, savedCount, systemStatus, backendError, isConnecting }) {
   const isGeminiReady = systemStatus?.gemini_configured;
   const isSupabaseReady = systemStatus?.supabase_configured;
+
+  let pillContent;
+  if (isConnecting) {
+    pillContent = (
+      <>
+        <span className="status-dot demo"></span>
+        <span>Connecting...</span>
+      </>
+    );
+  } else if (backendError || !systemStatus) {
+    pillContent = (
+      <>
+        <span className="status-dot offline"></span>
+        <span title={backendError || 'Backend unreachable'}>Backend Offline</span>
+      </>
+    );
+  } else {
+    pillContent = (
+      <>
+        <span className={`status-dot ${isGeminiReady ? 'active' : 'demo'}`}></span>
+        <span>{isGeminiReady ? 'Gemini AI' : 'Demo AI'}</span>
+        <span style={{ opacity: 0.4 }}>|</span>
+        <span className={`status-dot ${isSupabaseReady ? 'active' : 'demo'}`}></span>
+        <span>{isSupabaseReady ? 'Supabase' : 'Local DB'}</span>
+      </>
+    );
+  }
 
   return (
     <header className="navbar">
@@ -62,11 +89,7 @@ export default function Navbar({ activeTab, setActiveTab, savedCount, systemStat
         onClick={() => setActiveTab('status')}
         title="Click to view AI & Database configuration"
       >
-        <span className={`status-dot ${isGeminiReady ? 'active' : 'demo'}`}></span>
-        <span>{isGeminiReady ? 'Gemini AI' : 'Demo AI'}</span>
-        <span style={{ opacity: 0.4 }}>|</span>
-        <span className={`status-dot ${isSupabaseReady ? 'active' : 'demo'}`}></span>
-        <span>{isSupabaseReady ? 'Supabase' : 'Local DB'}</span>
+        {pillContent}
       </div>
     </header>
   );

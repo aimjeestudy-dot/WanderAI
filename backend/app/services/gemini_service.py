@@ -204,55 +204,76 @@ async def generate_recommendations(req: RecommendationRequest) -> Recommendation
     return _generate_demo_recommendations(req)
 
 
-async def _call_gemini_api(prompt: str, model: str = "gemini-3.8-flash") -> str:
+async def _call_gemini_api(prompt: str, model: str = None) -> str:
     """
     Calls Google Gemini REST API using httpx with generationConfig for JSON response.
+    Includes automatic fallback to stable models if the primary model is busy (HTTP 503) or deprecated.
     """
-    # Clean up model name if user set just flash
-    model_name = model if "/" in model else f"models/{model}"
-    url = f"https://generativelanguage.googleapis.com/v1beta/{model_name}:generateContent?key={settings.GEMINI_API_KEY}"
+    primary = model or settings.GEMINI_MODEL or "gemini-3.8-flash"
+    models_to_try = [primary]
+    if "gemini-3.5-flash" not in models_to_try:
+        models_to_try.append("gemini-3.5-flash")
 
-    payload = {
-        "contents": [
-            {
-                "parts": [
-                    {"text": prompt}
-                ]
-            }
-        ],
-        "generationConfig": {
-            "responseMimeType": "application/json",
-            "temperature": 0.7,
-            "maxOutputTokens": 4096
-        }
-    }
-
-    # Gemini can occasionally queue requests under load.  A short deadline lets
-    # the caller show a complete local itinerary instead of a long spinner.
+    last_error = None
     timeout_seconds = settings.GEMINI_TIMEOUT_SECONDS
-    timeout = httpx.Timeout(timeout_seconds, connect=min(3.0, timeout_seconds))
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        response = await client.post(url, json=payload)
+    timeout = httpx.Timeout(timeout_seconds, connect=min(5.0, timeout_seconds))
 
-        if response.status_code != 200:
+    for m in models_to_try:
+        model_name = m if "/" in m else f"models/{m}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/{model_name}:generateContent?key={settings.GEMINI_API_KEY}"
+
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {"text": prompt}
+                    ]
+                }
+            ],
+            "generationConfig": {
+                "responseMimeType": "application/json",
+                "temperature": 0.7,
+                "maxOutputTokens": 4096
+            }
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(url, json=payload)
+
+            if response.status_code == 200:
+                res_data = response.json()
+                candidates = res_data.get("candidates", [])
+                if not candidates:
+                    raise RuntimeError(f"Gemini model {m} returned empty candidates.")
+
+                parts = candidates[0].get("content", {}).get("parts", [])
+                if not parts:
+                    raise RuntimeError(f"Gemini model {m} returned no content parts.")
+
+                return parts[0].get("text", "")
+
             error_detail = response.text
             try:
                 err_json = response.json()
                 error_detail = err_json.get("error", {}).get("message", error_detail)
             except Exception:
                 pass
-            raise RuntimeError(f"Gemini API returned HTTP {response.status_code}: {error_detail}")
 
-        res_data = response.json()
-        candidates = res_data.get("candidates", [])
-        if not candidates:
-            raise RuntimeError("Gemini returned empty candidates.")
+            last_error = RuntimeError(f"Gemini API ({m}) returned HTTP {response.status_code}: {error_detail}")
+            logger.warning("Gemini model %s returned HTTP %s: %s", m, response.status_code, error_detail)
 
-        parts = candidates[0].get("content", {}).get("parts", [])
-        if not parts:
-            raise RuntimeError("Gemini returned no content parts.")
+            # If 503 (high demand) or 404 (model unavailable), try next candidate
+            if response.status_code in (404, 503) and m != models_to_try[-1]:
+                logger.info("Retrying with fallback model %s...", models_to_try[-1])
+                continue
+            raise last_error
 
-        return parts[0].get("text", "")
+        except (httpx.TimeoutException, httpx.RequestError):
+            raise
+
+    if last_error:
+        raise last_error
 
 
 def _clean_and_parse_json(raw_text: str) -> Dict[str, Any]:

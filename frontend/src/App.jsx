@@ -11,6 +11,8 @@ import { Sparkles, AlertCircle, CheckCircle2 } from 'lucide-react';
 export default function App() {
   const [activeTab, setActiveTab] = useState('plan');
   const [systemStatus, setSystemStatus] = useState(null);
+  const [backendError, setBackendError] = useState(null);
+  const [isConnecting, setIsConnecting] = useState(true);
   const [currentItinerary, setCurrentItinerary] = useState(null);
   const [savedList, setSavedList] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -26,11 +28,16 @@ export default function App() {
   };
 
   const loadInitialData = async () => {
+    setIsConnecting(true);
     try {
       const statusRes = await getSystemStatus();
       setSystemStatus(statusRes);
+      setBackendError(null);
     } catch (e) {
       console.warn('System status check:', e.message);
+      setBackendError(e.message);
+    } finally {
+      setIsConnecting(false);
     }
 
     try {
@@ -101,6 +108,8 @@ export default function App() {
         }}
         savedCount={savedList.length}
         systemStatus={systemStatus}
+        backendError={backendError}
+        isConnecting={isConnecting}
       />
 
       {/* Global Toast Notification */}
@@ -182,7 +191,11 @@ export default function App() {
       {activeTab === 'status' && (
         <StatusPanel
           systemStatus={systemStatus}
-          onStatusUpdated={(newStatus) => setSystemStatus(newStatus)}
+          backendError={backendError}
+          onStatusUpdated={(newStatus) => {
+            setSystemStatus(newStatus);
+            setBackendError(null);
+          }}
         />
       )}
     </div>

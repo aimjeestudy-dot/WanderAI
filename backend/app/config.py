@@ -24,13 +24,13 @@ class Settings:
 
     @property
     def GEMINI_TIMEOUT_SECONDS(self) -> float:
-        """Keep the interactive planner responsive when Gemini is busy."""
+        """Allow realistic AI generation times while protecting against hanging requests."""
         load_dotenv(dotenv_path=env_path, override=True)
-        raw_timeout = os.getenv("GEMINI_TIMEOUT_SECONDS", "8").strip()
+        raw_timeout = os.getenv("GEMINI_TIMEOUT_SECONDS", "30").strip()
         try:
-            return max(1.0, min(float(raw_timeout), 20.0))
+            return max(1.0, min(float(raw_timeout), 60.0))
         except ValueError:
-            return 8.0
+            return 30.0
 
     @property
     def SUPABASE_URL(self) -> str:

@@ -33,6 +33,13 @@ def test_system_status():
     assert "gemini_configured" in data
     assert "storage_type" in data
 
+def test_system_status_without_prefix():
+    """Verify that requests without /api prefix also resolve to avoid 404s."""
+    response = client.get("/status")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "healthy"
+
 def test_generate_itinerary_validation_error():
     # Empty destination
     bad_payload = {

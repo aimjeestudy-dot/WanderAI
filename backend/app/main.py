@@ -1,6 +1,6 @@
 import logging
 from typing import List, Dict, Any
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -51,7 +51,11 @@ async def root():
     }
 
 
-@app.get("/api/status", response_model=SystemStatus, tags=["System"])
+# APIRouter mounted at both /api and root to guarantee zero 404s from prefix mismatches
+api_router = APIRouter()
+
+
+@api_router.get("/status", response_model=SystemStatus, tags=["System"])
 async def get_system_status():
     """
     Returns live connectivity status for Gemini and Supabase integrations.
@@ -81,7 +85,7 @@ async def get_system_status():
     )
 
 
-@app.post("/api/recommendations", response_model=RecommendationResponse, tags=["Recommendations"])
+@api_router.post("/recommendations", response_model=RecommendationResponse, tags=["Recommendations"])
 async def get_destination_recommendations(req: RecommendationRequest):
     """
     Recommends tailored destinations based on travel style, budget, duration, and interests.
@@ -96,7 +100,7 @@ async def get_destination_recommendations(req: RecommendationRequest):
         )
 
 
-@app.post("/api/itineraries/generate", response_model=Itinerary, tags=["Itineraries"])
+@api_router.post("/itineraries/generate", response_model=Itinerary, tags=["Itineraries"])
 async def generate_itinerary(req: ItineraryGenerateRequest):
     """
     Builds a structured prompt from user preferences and generates a day-by-day travel itinerary.
@@ -117,7 +121,7 @@ async def generate_itinerary(req: ItineraryGenerateRequest):
         )
 
 
-@app.post("/api/itineraries", tags=["Itineraries"])
+@api_router.post("/itineraries", tags=["Itineraries"])
 async def save_itinerary(req: SaveItineraryRequest):
     """
     Saves an itinerary to Supabase (or local storage if Supabase credentials are not set).
@@ -133,7 +137,7 @@ async def save_itinerary(req: SaveItineraryRequest):
         )
 
 
-@app.get("/api/itineraries", tags=["Itineraries"])
+@api_router.get("/itineraries", tags=["Itineraries"])
 async def list_itineraries():
     """
     Lists all saved itineraries.
@@ -149,7 +153,7 @@ async def list_itineraries():
         )
 
 
-@app.get("/api/itineraries/{itinerary_id}", tags=["Itineraries"])
+@api_router.get("/itineraries/{itinerary_id}", tags=["Itineraries"])
 async def get_itinerary(itinerary_id: str):
     """
     Retrieves a single itinerary by ID.
@@ -163,7 +167,7 @@ async def get_itinerary(itinerary_id: str):
     return item
 
 
-@app.delete("/api/itineraries/{itinerary_id}", tags=["Itineraries"])
+@api_router.delete("/itineraries/{itinerary_id}", tags=["Itineraries"])
 async def delete_itinerary(itinerary_id: str):
     """
     Deletes an itinerary by ID.
@@ -177,7 +181,7 @@ async def delete_itinerary(itinerary_id: str):
     return {"status": "success", "message": f"Itinerary {itinerary_id} deleted."}
 
 
-@app.patch("/api/itineraries/{itinerary_id}/notes", tags=["Itineraries"])
+@api_router.patch("/itineraries/{itinerary_id}/notes", tags=["Itineraries"])
 async def update_itinerary_notes(itinerary_id: str, payload: Dict[str, str]):
     """
     Updates custom notes on an itinerary.
@@ -190,3 +194,8 @@ async def update_itinerary_notes(itinerary_id: str, payload: Dict[str, str]):
             detail=f"Itinerary {itinerary_id} not found."
         )
     return {"status": "success", "record": updated}
+
+
+# Expose routes with both `/api` prefix and root prefix
+app.include_router(api_router, prefix="/api")
+app.include_router(api_router, prefix="")

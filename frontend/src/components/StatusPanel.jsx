@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
-import { Shield, Sparkles, Database, RefreshCw, Key, ExternalLink, CheckCircle2, AlertTriangle, Code } from 'lucide-react';
-import { getSystemStatus } from '../services/api';
+import { Sparkles, Database, RefreshCw, Key, ExternalLink, AlertTriangle } from 'lucide-react';
+import { getSystemStatus, API_BASE } from '../services/api';
 
-export default function StatusPanel({ systemStatus, onStatusUpdated }) {
+export default function StatusPanel({ systemStatus, backendError, onStatusUpdated }) {
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState(null);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
+    setRefreshError(null);
     try {
       const res = await getSystemStatus();
       onStatusUpdated(res);
     } catch (e) {
-      alert('Could not refresh status: ' + e.message);
+      setRefreshError(e.message);
     } finally {
       setIsRefreshing(false);
     }
@@ -19,15 +21,32 @@ export default function StatusPanel({ systemStatus, onStatusUpdated }) {
 
   const isGeminiReady = systemStatus?.gemini_configured;
   const isSupabaseReady = systemStatus?.supabase_configured;
+  const isOffline = Boolean(backendError || refreshError || !systemStatus);
 
   return (
     <div className="settings-section" style={{ marginTop: '10px' }}>
+      {/* Backend Connectivity Banner if offline */}
+      {isOffline && (
+        <div className="alert-banner error" style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertTriangle size={18} />
+            <strong>Backend Connection Notice</strong>
+          </div>
+          <p style={{ margin: 0, fontSize: '0.88rem', opacity: 0.9 }}>
+            Target Backend: <code>{API_BASE}</code>
+          </p>
+          <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.85 }}>
+            {refreshError || backendError || 'Backend service is currently unreachable. If using Render free tier, the initial cold start can take 50-90 seconds to wake up.'}
+          </p>
+        </div>
+      )}
+
       <div className="glass-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div>
             <h2>Environment & Integrations Status</h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginTop: '4px' }}>
-              Check your Google Gemini AI and Supabase database connections.
+              Backend URL: <code>{API_BASE}</code>
             </p>
           </div>
           <button
