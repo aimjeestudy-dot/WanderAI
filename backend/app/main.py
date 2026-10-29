@@ -52,11 +52,21 @@ async def root():
     }
 
 
+@app.get("/health", tags=["Health"])
+async def health_check():
+    return {
+        "status": "healthy",
+        "app": settings.PROJECT_NAME,
+        "version": settings.VERSION
+    }
+
+
 # APIRouter mounted at both /api and root to guarantee zero 404s from prefix mismatches
 api_router = APIRouter()
 
 
 @api_router.get("/status", response_model=SystemStatus, tags=["System"])
+@api_router.get("/health", response_model=SystemStatus, tags=["System"])
 async def get_system_status():
     """
     Returns live connectivity status for Gemini and Supabase integrations.

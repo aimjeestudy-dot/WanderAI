@@ -1,10 +1,16 @@
 import React, { useState } from 'react';
-import { Sparkles, Database, RefreshCw, Key, ExternalLink, AlertTriangle } from 'lucide-react';
-import { getSystemStatus, API_BASE } from '../services/api';
+import { Sparkles, Database, RefreshCw, Key, ExternalLink, AlertTriangle, Link2, Check } from 'lucide-react';
+import { getSystemStatus, resolveApiBase, setApiBaseOverride } from '../services/api';
 
 export default function StatusPanel({ systemStatus, backendError, onStatusUpdated }) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState(null);
+  const [customUrl, setCustomUrl] = useState(() => {
+    return typeof window !== 'undefined' ? window.localStorage.getItem('WANDERAI_API_BASE') || '' : '';
+  });
+  const [urlSavedMessage, setUrlSavedMessage] = useState(null);
+
+  const currentApiBase = resolveApiBase();
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -17,6 +23,22 @@ export default function StatusPanel({ systemStatus, backendError, onStatusUpdate
     } finally {
       setIsRefreshing(false);
     }
+  };
+
+  const handleSaveCustomUrl = async (e) => {
+    e.preventDefault();
+    setApiBaseOverride(customUrl);
+    setUrlSavedMessage('Backend URL updated! Checking connection...');
+    await handleRefresh();
+    setTimeout(() => setUrlSavedMessage(null), 4000);
+  };
+
+  const handleResetUrl = async () => {
+    setCustomUrl('');
+    setApiBaseOverride(null);
+    setUrlSavedMessage('Reset to default backend URL.');
+    await handleRefresh();
+    setTimeout(() => setUrlSavedMessage(null), 4000);
   };
 
   const isGeminiReady = systemStatus?.gemini_configured;
@@ -33,7 +55,7 @@ export default function StatusPanel({ systemStatus, backendError, onStatusUpdate
             <strong>Backend Connection Notice</strong>
           </div>
           <p style={{ margin: 0, fontSize: '0.88rem', opacity: 0.9 }}>
-            Target Backend: <code>{API_BASE}</code>
+            Target Backend: <code>{currentApiBase}</code>
           </p>
           <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.85 }}>
             {refreshError || backendError || 'Backend service is currently unreachable. If using Render free tier, the initial cold start can take 50-90 seconds to wake up.'}
@@ -46,7 +68,7 @@ export default function StatusPanel({ systemStatus, backendError, onStatusUpdate
           <div>
             <h2>Environment & Integrations Status</h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginTop: '4px' }}>
-              Backend URL: <code>{API_BASE}</code>
+              Active Backend Endpoint: <code>{currentApiBase}</code>
             </p>
           </div>
           <button
@@ -58,6 +80,38 @@ export default function StatusPanel({ systemStatus, backendError, onStatusUpdate
             <RefreshCw size={15} className={isRefreshing ? 'spinner' : ''} />
             <span>Re-Check Status</span>
           </button>
+        </div>
+
+        {/* Runtime Backend URL Override Form */}
+        <div style={{ marginTop: '18px', padding: '14px', background: 'rgba(255, 255, 255, 0.04)', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+          <form onSubmit={handleSaveCustomUrl} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <label style={{ fontSize: '0.88rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Link2 size={15} />
+              <span>Configure Live Backend URL (Override):</span>
+            </label>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                placeholder="e.g. https://your-render-service.onrender.com"
+                value={customUrl}
+                onChange={(e) => setCustomUrl(e.target.value)}
+                style={{ flex: 1, minWidth: '260px', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-input, rgba(0,0,0,0.2))', color: '#fff', fontSize: '0.88rem' }}
+              />
+              <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.88rem' }} disabled={isRefreshing}>
+                Apply & Test
+              </button>
+              {customUrl && (
+                <button type="button" className="btn-secondary" onClick={handleResetUrl} style={{ padding: '8px 14px', fontSize: '0.88rem' }} disabled={isRefreshing}>
+                  Reset
+                </button>
+              )}
+            </div>
+            {urlSavedMessage && (
+              <span style={{ fontSize: '0.82rem', color: '#6ee7b7', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Check size={14} /> {urlSavedMessage}
+              </span>
+            )}
+          </form>
         </div>
 
         {/* Status Metrics */}

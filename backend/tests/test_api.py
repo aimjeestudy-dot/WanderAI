@@ -40,6 +40,18 @@ def test_system_status_without_prefix():
     data = response.json()
     assert data["status"] == "healthy"
 
+
+def test_health_endpoints():
+    """Verify that both /health and /api/health return healthy status for cloud monitors."""
+    resp1 = client.get("/health")
+    assert resp1.status_code == 200
+    assert resp1.json()["status"] == "healthy"
+
+    resp2 = client.get("/api/health")
+    assert resp2.status_code == 200
+    assert resp2.json()["status"] == "healthy"
+
+
 def test_generate_itinerary_validation_error():
     # Empty destination
     bad_payload = {
